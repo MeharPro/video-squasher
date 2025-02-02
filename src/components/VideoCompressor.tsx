@@ -6,7 +6,7 @@ import { useToast } from "@/components/ui/use-toast";
 import DropZone from './DropZone';
 import CompressionSettings from './CompressionSettings';
 import Progress from './Progress';
-import { Download } from 'lucide-react';
+import { Download, Loader2 } from 'lucide-react';
 
 const VideoCompressor = () => {
   const [file, setFile] = useState<File | null>(null);
@@ -14,6 +14,7 @@ const VideoCompressor = () => {
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState('');
   const [compressed, setCompressed] = useState<string | null>(null);
+  const [isCompressing, setIsCompressing] = useState(false);
   const { toast } = useToast();
   const ffmpeg = new FFmpeg();
 
@@ -28,27 +29,37 @@ const VideoCompressor = () => {
     if (!file) return;
 
     try {
+      setIsCompressing(true);
+      setProgress(0);
+      setStatus('Loading compression engine...');
+
       if (!ffmpeg.loaded) {
-        setStatus('Loading compression engine...');
-        // Load ffmpeg.wasm-core script
         await ffmpeg.load({
           coreURL: await toBlobURL(`/node_modules/@ffmpeg/core/dist/ffmpeg-core.js`, 'text/javascript'),
           wasmURL: await toBlobURL(`/node_modules/@ffmpeg/core/dist/ffmpeg-core.wasm`, 'application/wasm'),
         });
       }
 
+      setProgress(20);
+      setStatus('Preparing video...');
+      
       const inputFileName = 'input.mp4';
       const outputFileName = 'output.mp4';
       
-      ffmpeg.writeFile(inputFileName, await fetchFile(file));
+      await ffmpeg.writeFile(inputFileName, await fetchFile(file));
 
+      setProgress(40);
       setStatus('Compressing video...');
+      
       await ffmpeg.exec([
         '-i', inputFileName,
-        '-crf', String(51 - (quality / 2)), // Convert quality to CRF value
+        '-crf', String(51 - (quality / 2)),
         '-preset', 'medium',
         outputFileName
       ]);
+
+      setProgress(80);
+      setStatus('Finalizing...');
 
       const data = await ffmpeg.readFile(outputFileName);
       const uint8Array = new Uint8Array(data as ArrayBufferLike);
@@ -72,6 +83,8 @@ const VideoCompressor = () => {
         title: "Compression Failed",
         description: "There was an error compressing your video.",
       });
+    } finally {
+      setIsCompressing(false);
     }
   };
 
@@ -98,15 +111,22 @@ const VideoCompressor = () => {
           
           <CompressionSettings quality={quality} setQuality={setQuality} />
           
-          {progress > 0 && <Progress progress={progress} status={status} />}
+          {(progress > 0 || isCompressing) && <Progress progress={progress} status={status} />}
           
           <div className="flex gap-4">
             <Button
               onClick={compressVideo}
-              disabled={!file || progress > 0}
+              disabled={!file || isCompressing}
               className="w-full"
             >
-              Compress Video
+              {isCompressing ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Compressing...
+                </>
+              ) : (
+                'Compress Video'
+              )}
             </Button>
             
             {compressed && (
