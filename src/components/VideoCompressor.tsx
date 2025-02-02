@@ -35,18 +35,19 @@ const VideoCompressor = () => {
 
       // Load FFmpeg if not already loaded
       if (!ffmpeg.loaded) {
-        const baseURL = '/ffmpeg';
-        const coreURL = await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript');
-        const wasmURL = await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm');
-        
         try {
+          const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist';
+          const coreURL = await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript');
+          const wasmURL = await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm');
+          
           await ffmpeg.load({
             coreURL,
             wasmURL,
           });
+          console.log('FFmpeg loaded successfully');
         } catch (loadError) {
           console.error('FFmpeg load error:', loadError);
-          throw new Error('Failed to load video compression engine');
+          throw new Error('Failed to load video compression engine. Please try again.');
         }
       }
 
@@ -93,6 +94,8 @@ const VideoCompressor = () => {
         title: "Compression Failed",
         description: error instanceof Error ? error.message : "There was an error compressing your video.",
       });
+      setProgress(0);
+      setStatus('');
     } finally {
       setIsCompressing(false);
     }
