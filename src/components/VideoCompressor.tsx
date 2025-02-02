@@ -51,8 +51,7 @@ const VideoCompressor = () => {
       ]);
 
       const data = await ffmpeg.readFile(outputFileName);
-      // Handle the FileData type correctly
-      const uint8Array = data instanceof Uint8Array ? data : new Uint8Array(data as ArrayBuffer);
+      const uint8Array = new Uint8Array(data as ArrayBufferLike);
       const compressedUrl = URL.createObjectURL(
         new Blob([uint8Array], { type: 'video/mp4' })
       );
