@@ -35,7 +35,7 @@ const VideoCompressor = () => {
 
       // Load FFmpeg if not already loaded
       if (!ffmpeg.loaded) {
-        const baseURL = '/node_modules/@ffmpeg/core/dist';
+        const baseURL = '/ffmpeg';
         const coreURL = await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript');
         const wasmURL = await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm');
         
