@@ -1,13 +1,12 @@
 import React, { useState, useCallback } from 'react';
-import { createFFmpeg, fetchFile } from '@ffmpeg/ffmpeg';
+import { FFmpeg } from '@ffmpeg/ffmpeg';
+import { toBlobURL, fetchFile } from '@ffmpeg/util';
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import DropZone from './DropZone';
 import CompressionSettings from './CompressionSettings';
 import Progress from './Progress';
 import { Download } from 'lucide-react';
-
-const ffmpeg = createFFmpeg({ log: true });
 
 const VideoCompressor = () => {
   const [file, setFile] = useState<File | null>(null);
@@ -16,6 +15,7 @@ const VideoCompressor = () => {
   const [status, setStatus] = useState('');
   const [compressed, setCompressed] = useState<string | null>(null);
   const { toast } = useToast();
+  const ffmpeg = new FFmpeg();
 
   const handleFileSelect = (selectedFile: File) => {
     setFile(selectedFile);
@@ -28,25 +28,29 @@ const VideoCompressor = () => {
     if (!file) return;
 
     try {
-      if (!ffmpeg.isLoaded()) {
+      if (!ffmpeg.loaded) {
         setStatus('Loading compression engine...');
-        await ffmpeg.load();
+        // Load ffmpeg.wasm-core script
+        await ffmpeg.load({
+          coreURL: await toBlobURL(`/node_modules/@ffmpeg/core/dist/ffmpeg-core.js`, 'text/javascript'),
+          wasmURL: await toBlobURL(`/node_modules/@ffmpeg/core/dist/ffmpeg-core.wasm`, 'application/wasm'),
+        });
       }
 
       const inputFileName = 'input.mp4';
       const outputFileName = 'output.mp4';
       
-      ffmpeg.FS('writeFile', inputFileName, await fetchFile(file));
+      ffmpeg.writeFile(inputFileName, await fetchFile(file));
 
       setStatus('Compressing video...');
-      await ffmpeg.run(
+      await ffmpeg.exec([
         '-i', inputFileName,
         '-crf', String(51 - (quality / 2)), // Convert quality to CRF value
         '-preset', 'medium',
         outputFileName
-      );
+      ]);
 
-      const data = ffmpeg.FS('readFile', outputFileName);
+      const data = await ffmpeg.readFile(outputFileName);
       const compressedUrl = URL.createObjectURL(
         new Blob([data.buffer], { type: 'video/mp4' })
       );
